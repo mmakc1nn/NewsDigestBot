@@ -1,0 +1,59 @@
+version: "3.9"
+
+services:
+
+  api:
+    build:
+      context: .
+      dockerfile: src/NewsDigestBot.Api/Dockerfile
+    container_name: newsdigest_api
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__Postgres=${POSTGRES_CONNECTION}
+      - Telegram__BotToken=${TELEGRAM_BOT_TOKEN}
+      - Llm__ApiKey=${LLM_API_KEY}
+      - Llm__BaseUrl=${LLM_BASE_URL}
+      - Llm__Model=${LLM_MODEL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+
+  worker:
+    build:
+      context: .
+      dockerfile: src/NewsDigestBot.Worker/Dockerfile
+    container_name: newsdigest_worker
+    restart: unless-stopped
+    environment:
+      - DOTNET_ENVIRONMENT=Production
+      - ConnectionStrings__Postgres=${POSTGRES_CONNECTION}
+      - Llm__ApiKey=${LLM_API_KEY}
+      - Llm__BaseUrl=${LLM_BASE_URL}
+      - Llm__Model=${LLM_MODEL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16
+    container_name: newsdigest_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5432:5432"
+
+volumes:
+  postgres_data:
