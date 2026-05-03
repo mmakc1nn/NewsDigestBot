@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Worker">
+﻿<Project Sdk="Microsoft.NET.Sdk.Worker">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -9,5 +9,10 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NewsDigestBot.Core\NewsDigestBot.Core.csproj" />
+    <ProjectReference Include="..\NewsDigestBot.Infrastructure\NewsDigestBot.Infrastructure.csproj" />
   </ItemGroup>
 </Project>
