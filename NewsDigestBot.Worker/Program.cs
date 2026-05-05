@@ -1,7 +1,24 @@
-using NewsDigestBot.Worker;
+using Microsoft.EntityFrameworkCore;
+using NewsDigestBot.Infrastructure.Data;
+using NewsDigestBot.Worker.Services;
+using NewsDigestBot.Worker.Workers;
+
 
 var builder = Host.CreateApplicationBuilder(args);
-builder.Services.AddHostedService<Worker>();
+
+// БД
+builder.Services.AddDbContextFactory<AppDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("Postgres")));
+
+
+// Сервисы
+builder.Services.AddScoped<RssParserService>();
+builder.Services.AddHostedService<NewsFetcherWorker>();
+
+// Фоновый воркер
+builder.Services.AddHostedService<NewsFetcherWorker>();
+
+
 
 var host = builder.Build();
 host.Run();
