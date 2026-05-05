@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NewsDigestBot.Infrastructure.Data;
+using Telegram.Bot;
 
 namespace NewsDigestBot.Api.Controllers
 {
@@ -9,34 +10,49 @@ namespace NewsDigestBot.Api.Controllers
     public class HealthController : ControllerBase
     {
         private readonly AppDbContext _db;
+        private readonly ITelegramBotClient _bot;
 
-        public HealthController(AppDbContext db)
+        public HealthController(AppDbContext db, ITelegramBotClient bot)
         {
             _db = db;
+            _bot = bot;
         }
 
         [HttpGet]
         public async Task<IActionResult> Health(CancellationToken ct)
         {
+
+            var dbOk = false;
+            var botOk = false;
+
             try
             {
                 await _db.Database.CanConnectAsync(ct);
-                return Ok(new
-                {
-                    status = "healthy",
-                    database = "connected",
-                    timestamp = DateTime.UtcNow
-                });
+                dbOk = true;
             }
-            catch
+            catch { }
+
+            try
             {
-                return StatusCode(503, new
-                {
-                    status = "unhealthy",
-                    database = "disconnected",
-                    timestamp = DateTime.UtcNow
-                });
+                await _bot.GetMe(ct);
+                botOk = true;
             }
+            catch { }
+
+            var status = dbOk && botOk ? "healthy" : "unhealthy";
+            var code = dbOk && botOk ? 200 : 503;
+
+            return StatusCode(code, new
+            {
+                status,
+                checks = new
+                {
+                    database = dbOk ? "connected" : "disconnected",
+                    telegram = botOk ? "connected" : "disconnected"
+                },
+                timestamp = DateTime.UtcNow
+            });
+
         }
     }
 }
