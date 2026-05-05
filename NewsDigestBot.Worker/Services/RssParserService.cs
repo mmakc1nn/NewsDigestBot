@@ -14,16 +14,13 @@ namespace NewsDigestBot.Worker.Services
     public class RssParserService
     {
         private readonly IDbContextFactory<AppDbContext> _dbFactory;
-        private readonly ArticleContentFetcher _contentFetcher;
         private readonly ILogger<RssParserService> _logger;
 
         public RssParserService(
             IDbContextFactory<AppDbContext> dbFactory,
-            ArticleContentFetcher contentFetcher,
             ILogger<RssParserService> logger)
         {
             _dbFactory = dbFactory;
-            _contentFetcher = contentFetcher;
             _logger = logger;
         }
 
@@ -66,22 +63,17 @@ namespace NewsDigestBot.Worker.Services
                 var url = item.Link?.Trim();
                 if (string.IsNullOrEmpty(url)) continue;
 
-                var cleanUrl = url.Split('?')[0];
-
-               
-                var exists = await db.Articles.AnyAsync(a => a.Url == cleanUrl, ct);
+                var exists = await db.Articles.AnyAsync(a => a.Url == url, ct);
                 if (exists) continue;
-
-                var content = await _contentFetcher.FetchContentAsync(cleanUrl, ct);
 
                 var article = new Article
                 {
                     Title = item.Title?.Trim() ?? "Без заголовка",
-                    Url = cleanUrl,
+                    Url = url,
                     Source = source.Name,
                     TopicId = topic.Id,
                     PublishedAt = item.PublishingDate ?? DateTime.UtcNow,
-                    OriginalContent = content,
+                    OriginalContent = item.Description,
                     IsSummarized = false
                 };
 
@@ -92,6 +84,6 @@ namespace NewsDigestBot.Worker.Services
             await db.SaveChangesAsync(ct);
             _logger.LogInformation("{Source}: сохранено {Count} новых статей", source.Name, saved);
         }
-    }
 
+    }
 }

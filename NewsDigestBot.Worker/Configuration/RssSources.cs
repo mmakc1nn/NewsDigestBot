@@ -10,12 +10,12 @@ namespace NewsDigestBot.Worker.Configuration
     {
         public static readonly List<RssSource> Sources = new()
         {
-            new("https://lenta.ru/rss/news",          "Lenta.ru",  "world"),
-            new("https://lenta.ru/rss/news/science",  "Lenta.ru",  "science"),
-            new("https://lenta.ru/rss/news/sport",    "Lenta.ru",  "sport"),
-            new("https://lenta.ru/rss/news/economy",  "Lenta.ru",  "business"),
-            new("https://habr.com/ru/rss/articles/",  "Habr",      "tech"),
-            new("https://meduza.io/rss/all",          "Meduza",    "world"),
+            new("https://habr.com/ru/rss/articles/",                              "Habr",     "tech"),
+            new("https://meduza.io/rss/all",                                      "Meduza",   "world"),
+            new("https://feeds.bbci.co.uk/news/technology/rss.xml",               "BBC",      "tech"),
+            new("https://feeds.bbci.co.uk/news/science_and_environment/rss.xml",  "BBC",      "science"),
+            new("https://feeds.bbci.co.uk/news/business/rss.xml",                 "BBC",      "business"),
+            new("https://feeds.bbci.co.uk/news/world/rss.xml",                    "BBC",      "world"),
         };
     }
 
