@@ -13,10 +13,12 @@ builder.Services.AddDbContextFactory<AppDbContext>(options =>
 
 // Сервисы
 builder.Services.AddScoped<RssParserService>();
-builder.Services.AddHostedService<NewsFetcherWorker>();
+builder.Services.AddScoped<ArticleProcessorService>();
+builder.Services.AddSingleton<LlmService>();
 
 // Фоновый воркер
 builder.Services.AddHostedService<NewsFetcherWorker>();
+builder.Services.AddHostedService<ArticleProcessorWorker>();
 
 
 
