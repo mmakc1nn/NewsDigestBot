@@ -58,6 +58,12 @@ namespace NewsDigestBot.Api.Services
                 case "/latest":
                     await HandleLatest(chatId, db, ct);
                     break;
+                case "/digest":
+                    await HandleDigest(chatId, text, db, ct);
+                    break;
+                case "/search":
+                    await HandleSearch(chatId, text, db, ct);
+                    break;
                 default:
                     await _bot.SendMessage(chatId,
                         "Неизвестная команда. Используй /start для начала.",
@@ -94,6 +100,7 @@ namespace NewsDigestBot.Api.Services
                 /mysubs — мои подписки
                 /latest — последние новости
                 /digest — получить дайджест
+                /search <запрос> — поиск по новостям
                 """;
 
             await _bot.SendMessage(chatId, welcome, cancellationToken: ct);
@@ -210,8 +217,109 @@ namespace NewsDigestBot.Api.Services
                     $"*{a.Title}*\n{a.Source} • {a.PublishedAt:dd.MM HH:mm}\n{a.Url}"));
 
             await _bot.SendMessage(chatId, text,
-                parseMode: ParseMode.Markdown,
+                cancellationToken: ct);
+        }
+
+        private async Task HandleDigest(long chatId, string text, AppDbContext db, CancellationToken ct)
+        {
+            var parts = text.Split(' ', 2);
+            var topicSlug = parts.Length > 1 ? parts[1].Trim().ToLower() : null;
+
+            var subs = await db.Subscriptions
+                .Where(s => s.UserId == chatId)
+                .Select(s => s.TopicId)
+                .ToListAsync(ct);
+
+            if (!subs.Any())
+            {
+                await _bot.SendMessage(chatId,
+                    "У тебя нет подписок. Используй /topics чтобы подписаться.",
+                    cancellationToken: ct);
+                return;
+            }
+
+            var query = db.Articles
+                .Include(a => a.Topic)
+                .Where(a => subs.Contains(a.TopicId) && a.IsSummarized);
+
+            // Если указана тема — фильтруем по ней
+            if (topicSlug is not null)
+            {
+                query = query.Where(a => a.Topic.Slug == topicSlug);
+            }
+
+            var articles = await query
+                .OrderByDescending(a => a.PublishedAt)
+                .Take(5)
+                .ToListAsync(ct);
+
+            if (!articles.Any())
+            {
+                var msg = topicSlug is not null
+                    ? $"Новостей по теме «{topicSlug}» пока нет."
+                    : "Новостей по твоим темам пока нет. Попробуй позже.";
+                await _bot.SendMessage(chatId, msg, cancellationToken: ct);
+                return;
+            }
+
+            var header = topicSlug is not null
+                ? $"📰 Дайджест по теме «{topicSlug}»:"
+                : $"📰 Твой дайджест — {articles.Count} новостей:";
+
+            await _bot.SendMessage(chatId, header, cancellationToken: ct);
+
+            foreach (var article in articles)
+            {
+                var articleText =
+                    $"📌 {article.Title}\n\n" +
+                    $"Резюме статьи:\n{article.Summary}\n\n" +
+                    $"{article.Source} • {article.PublishedAt:dd.MM HH:mm}\n" +
+                    $"{article.Url}";
+
+                await _bot.SendMessage(chatId, articleText, cancellationToken: ct);
+                await Task.Delay(300, ct);
+            }
+        }
+
+        private async Task HandleSearch(long chatId, string text, AppDbContext db, CancellationToken ct)
+        {
+            var parts = text.Split(' ', 2);
+            if (parts.Length < 2 || string.IsNullOrWhiteSpace(parts[1]))
+            {
+                await _bot.SendMessage(chatId,
+                    "Укажи запрос: /search искусственный интеллект",
+                    cancellationToken: ct);
+                return;
+            }
+
+            var query = parts[1].Trim();
+
+            var articles = await db.Articles
+                .Include(a => a.Topic)
+                .Where(a => EF.Functions.ILike(a.Title, $"%{query}%") && a.IsSummarized)
+                .OrderByDescending(a => a.PublishedAt)
+                .Take(5)
+                .ToListAsync(ct);
+
+            if (!articles.Any())
+            {
+                await _bot.SendMessage(chatId,
+                    $"По запросу «{query}» ничего не найдено.",
+                    cancellationToken: ct);
+                return;
+            }
+
+            var result = $"🔍 *Результаты поиска «{query}»:*\n\n" +
+                string.Join("\n\n", articles.Select(a =>
+                    $"*{a.Title}*\n" +
+                    $"{a.Summary?.Split('.')[0]}\n" +
+                    $"{a.Source} • {a.PublishedAt:dd.MM HH:mm}\n" +
+                    $"{a.Url}"));
+
+            await _bot.SendMessage(chatId, result,
                 cancellationToken: ct);
         }
     }
+
+
 }
